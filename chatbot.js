@@ -1,8 +1,24 @@
 // =====================================
 // IMPORTAÇÕES
 // =====================================
+const express = require("express");
 const qrcode = require("qrcode-terminal");
 const { Client, LocalAuth } = require("whatsapp-web.js");
+
+// =====================================
+// SERVIDOR WEB PARA O FLY.IO
+// =====================================
+const app = express();
+
+app.get("/", (req, res) => {
+  res.send("🤖 Bot Joypad Games está online!");
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🌐 Servidor rodando na porta ${PORT}`);
+});
 
 // =====================================
 // CONFIGURAÇÃO DO CLIENTE
@@ -15,24 +31,31 @@ const client = new Client({
   puppeteer: {
     headless: true,
 
-    // Compatível com nuvem
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+    executablePath:
+      process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
 
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
       "--disable-gpu",
+      "--disable-extensions",
+      "--disable-background-networking",
+      "--disable-software-rasterizer",
+      "--mute-audio",
+      "--no-zygote",
+      "--single-process",
     ],
   },
 });
 
 // =====================================
-// CONTROLE DE ESTADOS (MEMÓRIA DO ROBÔ)
+// CONTROLE DE ESTADOS
 // =====================================
 const emSuporte = new Set();
 const jaRecebeuMenu = new Map();
-const EXPIRACAO_MENU = 24 * 60 * 60 * 1000; // 24 horas
+
+const EXPIRACAO_MENU = 24 * 60 * 60 * 1000;
 
 // =====================================
 // EVENTOS DE CONEXÃO
@@ -54,9 +77,6 @@ client.on("auth_failure", (msg) => {
   console.log("❌ Falha na autenticação:", msg);
 });
 
-// =====================================
-// RECONEXÃO AUTOMÁTICA
-// =====================================
 client.on("disconnected", async (reason) => {
   console.log("⚠️ WhatsApp desconectado:", reason);
 
@@ -82,21 +102,27 @@ client.initialize();
 // =====================================
 // FUNÇÕES AUXILIARES
 // =====================================
-const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+const delay = (ms) =>
+  new Promise((res) => setTimeout(res, ms));
 
 // =====================================
-// FUNIL DE MENSAGENS PRINCIPAL
+// FUNIL PRINCIPAL
 // =====================================
 client.on("message_create", async (msg) => {
+
   try {
 
     // =====================================
     // IDENTIFICA O USUÁRIO
     // =====================================
-    const usuarioId = msg.fromMe ? msg.to : msg.from;
+    const usuarioId = msg.fromMe
+      ? msg.to
+      : msg.from;
 
     if (!usuarioId) return;
+
     if (usuarioId.endsWith("@g.us")) return;
+
     if (usuarioId === "status@broadcast") return;
 
     const chat = await msg.getChat();
@@ -112,13 +138,16 @@ client.on("message_create", async (msg) => {
     );
 
     // =====================================
-    // VOCÊ FINALIZOU O ATENDIMENTO
+    // ENCERRAMENTO PELO ATENDENTE
     // =====================================
     if (msg.fromMe) {
 
       if (
         emSuporte.has(usuarioId) &&
-        (texto === "#fechar" || texto === "finalizar")
+        (
+          texto === "#fechar" ||
+          texto === "finalizar"
+        )
       ) {
 
         emSuporte.delete(usuarioId);
@@ -133,7 +162,9 @@ client.on("message_create", async (msg) => {
           "🏁 *Atendimento encerrado!* O assistente virtual foi reativado."
         );
 
-        console.log(`🤖 Bot reativado pelo atendente: ${usuarioId}`);
+        console.log(
+          `🤖 Bot reativado pelo atendente: ${usuarioId}`
+        );
       }
 
       return;
@@ -161,7 +192,9 @@ client.on("message_create", async (msg) => {
           "🏁 *Atendimento encerrado com sucesso!* O assistente virtual foi reativado."
         );
 
-        console.log(`🤖 Bot reativado pelo cliente: ${usuarioId}`);
+        console.log(
+          `🤖 Bot reativado pelo cliente: ${usuarioId}`
+        );
       }
 
       return;
@@ -178,7 +211,8 @@ client.on("message_create", async (msg) => {
     // =====================================
     // MENU AUTOMÁTICO
     // =====================================
-    const visto = jaRecebeuMenu.get(usuarioId);
+    const visto =
+      jaRecebeuMenu.get(usuarioId);
 
     const expirou =
       !visto ||
@@ -191,7 +225,10 @@ client.on("message_create", async (msg) => {
 
     if (expirou || pediuMenu) {
 
-      jaRecebeuMenu.set(usuarioId, Date.now());
+      jaRecebeuMenu.set(
+        usuarioId,
+        Date.now()
+      );
 
       await typing(1500);
 
@@ -232,7 +269,10 @@ _*Digite "Menu" a qualquer momento para voltar aqui.*_`
     // =====================================
     // PLAYSTATION 3
     // =====================================
-    if (texto === "1" || texto === "ps3") {
+    if (
+      texto === "1" ||
+      texto === "ps3"
+    ) {
 
       await typing(1500);
 
@@ -251,7 +291,10 @@ _Digite "Menu" para voltar._`
     // =====================================
     // PLAYSTATION 4
     // =====================================
-    if (texto === "2" || texto === "ps4") {
+    if (
+      texto === "2" ||
+      texto === "ps4"
+    ) {
 
       await typing(1500);
 
@@ -270,7 +313,10 @@ _Digite "Menu" para voltar._`
     // =====================================
     // PLAYSTATION 5
     // =====================================
-    if (texto === "3" || texto === "ps5") {
+    if (
+      texto === "3" ||
+      texto === "ps5"
+    ) {
 
       await typing(1500);
 
@@ -356,7 +402,9 @@ Para agilizar o atendimento, envie:
 Nossa equipe já foi notificada 👍`
       );
 
-      console.log(`⚠️ Suporte ativado para: ${usuarioId}`);
+      console.log(
+        `⚠️ Suporte ativado para: ${usuarioId}`
+      );
 
       return;
     }
@@ -400,27 +448,11 @@ Digite *Menu* para voltar às opções.`
 
   } catch (error) {
 
-    console.error("❌ Erro no fluxo:", error);
+    console.error(
+      "❌ Erro no fluxo:",
+      error
+    );
 
   }
-});
-// código gigante do bot...
 
-client.on("message_create", async (msg) => {
-   // ...
-});
-
-// AQUI EMBAIXO entra o express
-const express = require("express");
-
-const app = express();
-
-app.get("/", (req, res) => {
-  res.send("🤖 Bot Joypad Games está online!");
-});
-
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🌐 Servidor rodando na porta ${PORT}`);
 });
