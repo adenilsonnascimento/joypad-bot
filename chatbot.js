@@ -30,10 +30,7 @@ const client = new Client({
 
   puppeteer: {
     headless: true,
-
-    executablePath:
-      process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
@@ -54,7 +51,6 @@ const client = new Client({
 // =====================================
 const emSuporte = new Set();
 const jaRecebeuMenu = new Map();
-
 const EXPIRACAO_MENU = 24 * 60 * 60 * 1000;
 
 // =====================================
@@ -79,19 +75,7 @@ client.on("auth_failure", (msg) => {
 
 client.on("disconnected", async (reason) => {
   console.log("⚠️ WhatsApp desconectado:", reason);
-
-  try {
-    await client.destroy();
-
-    console.log("🔄 Tentando reconectar em 5 segundos...");
-
-    setTimeout(() => {
-      client.initialize();
-    }, 5000);
-
-  } catch (err) {
-    console.error("❌ Erro ao reconectar:", err);
-  }
+  console.log("DICA: Se o problema persistir, apague a pasta .wwebjs_auth e reinicie o bot.");
 });
 
 // =====================================
@@ -102,150 +86,64 @@ client.initialize();
 // =====================================
 // FUNÇÕES AUXILIARES
 // =====================================
-const delay = (ms) =>
-  new Promise((res) => setTimeout(res, ms));
+const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
 // =====================================
 // FUNIL PRINCIPAL
 // =====================================
 client.on("message_create", async (msg) => {
-
   try {
-
-    // =====================================
-    // IDENTIFICA O USUÁRIO
-    // =====================================
-    const usuarioId = msg.fromMe
-      ? msg.to
-      : msg.from;
-
-    if (!usuarioId) return;
-
-    if (usuarioId.endsWith("@g.us")) return;
-
-    if (usuarioId === "status@broadcast") return;
+    const usuarioId = msg.fromMe ? msg.to : msg.from;
+    if (!usuarioId || usuarioId.endsWith("@g.us") || usuarioId === "status@broadcast") return;
 
     const chat = await msg.getChat();
-
     if (chat.isGroup) return;
 
-    const texto = msg.body
-      ? msg.body.trim().toLowerCase()
-      : "";
+    const texto = msg.body ? msg.body.trim().toLowerCase() : "";
 
-    console.log(
-      `📩 Conversa: ${usuarioId} | Texto: "${texto}" | emSuporte: ${emSuporte.has(usuarioId)} | fromMe: ${msg.fromMe}`
-    );
+    console.log(`📩 Conversa: ${usuarioId} | Texto: "${texto}"`);
 
-    // =====================================
     // ENCERRAMENTO PELO ATENDENTE
-    // =====================================
     if (msg.fromMe) {
-
-      if (
-        emSuporte.has(usuarioId) &&
-        (
-          texto === "#fechar" ||
-          texto === "finalizar"
-        )
-      ) {
-
+      if (emSuporte.has(usuarioId) && (texto === "#fechar" || texto === "finalizar")) {
         emSuporte.delete(usuarioId);
         jaRecebeuMenu.delete(usuarioId);
-
         await chat.sendStateTyping();
-
         await delay(1000);
-
-        await client.sendMessage(
-          usuarioId,
-          "🏁 *Atendimento encerrado!* O assistente virtual foi reativado."
-        );
-
-        console.log(
-          `🤖 Bot reativado pelo atendente: ${usuarioId}`
-        );
+        await client.sendMessage(usuarioId, "🏁 *Atendimento encerrado!* O assistente virtual foi reativado.");
       }
-
       return;
     }
 
-    // =====================================
     // SUPORTE HUMANO ATIVO
-    // =====================================
     if (emSuporte.has(usuarioId)) {
-
-      if (
-        texto === "#fechar" ||
-        texto === "finalizar"
-      ) {
-
+      if (texto === "#fechar" || texto === "finalizar") {
         emSuporte.delete(usuarioId);
         jaRecebeuMenu.delete(usuarioId);
-
         await chat.sendStateTyping();
-
         await delay(1000);
-
-        await client.sendMessage(
-          usuarioId,
-          "🏁 *Atendimento encerrado com sucesso!* O assistente virtual foi reativado."
-        );
-
-        console.log(
-          `🤖 Bot reativado pelo cliente: ${usuarioId}`
-        );
+        await client.sendMessage(usuarioId, "🏁 *Atendimento encerrado com sucesso!* O assistente virtual foi reativado.");
       }
-
       return;
     }
 
-    // =====================================
-    // SIMULA DIGITAÇÃO
-    // =====================================
     const typing = async (tempo = 2000) => {
       await chat.sendStateTyping();
       await delay(tempo);
     };
 
-    // =====================================
     // MENU AUTOMÁTICO
-    // =====================================
-    const visto =
-      jaRecebeuMenu.get(usuarioId);
-
-    const expirou =
-      !visto ||
-      Date.now() - visto > EXPIRACAO_MENU;
-
-    const pediuMenu =
-      texto === "menu" ||
-      texto === "inicio" ||
-      texto === "início";
+    const visto = jaRecebeuMenu.get(usuarioId);
+    const expirou = !visto || Date.now() - visto > EXPIRACAO_MENU;
+    const pediuMenu = texto === "menu" || texto === "inicio" || texto === "início";
 
     if (expirou || pediuMenu) {
-
-      jaRecebeuMenu.set(
-        usuarioId,
-        Date.now()
-      );
-
+      jaRecebeuMenu.set(usuarioId, Date.now());
       await typing(1500);
-
       const hora = new Date().getHours();
+      let saudacao = (hora >= 5 && hora < 12) ? "Bom dia" : (hora >= 12 && hora < 18) ? "Boa tarde" : "Boa noite";
 
-      let saudacao = "Olá";
-
-      if (hora >= 5 && hora < 12) {
-        saudacao = "Bom dia";
-      } else if (hora >= 12 && hora < 18) {
-        saudacao = "Boa tarde";
-      } else {
-        saudacao = "Boa noite";
-      }
-
-      await client.sendMessage(
-        usuarioId,
+      await client.sendMessage(usuarioId, 
 `${saudacao}! Bem-vindo à *Joypad Games* 🕹️🎮
 
 Eu sou o assistente virtual da loja.
@@ -260,199 +158,59 @@ Escolha uma opção digitando o número correspondente:
 6️⃣ - Suporte Técnico 🛠️
 7️⃣ - Grupo de Promoções 🔥
 
-_*Digite "Menu" a qualquer momento para voltar aqui.*_`
-      );
-
+_*Digite "Menu" a qualquer momento para voltar aqui.*_`);
       return;
     }
 
-    // =====================================
-    // PLAYSTATION 3
-    // =====================================
-    if (
-      texto === "1" ||
-      texto === "ps3"
-    ) {
-
+    // OPÇÕES DO MENU
+    if (texto === "1" || texto === "ps3") {
       await typing(1500);
-
-      await client.sendMessage(
-        usuarioId,
-`🎮 *Jogos de PS3 disponíveis - Joypad Games* 🟦
-
-🌐 https://joypad.com.br/categoria/todos-os-produtos/playstation3/
-
-_Digite "Menu" para voltar._`
-      );
-
+      await client.sendMessage(usuarioId, "🎮 *Jogos de PS3:* https://joypad.com.br/categoria/todos-os-produtos/playstation3/" );
       return;
     }
 
-    // =====================================
-    // PLAYSTATION 4
-    // =====================================
-    if (
-      texto === "2" ||
-      texto === "ps4"
-    ) {
-
+    if (texto === "2" || texto === "ps4") {
       await typing(1500);
-
-      await client.sendMessage(
-        usuarioId,
-`🎮 *Jogos de PS4 disponíveis - Joypad Games* 🟦
-
-🌐 https://joypad.com.br/categoria/todos-os-produtos/playstation4/
-
-_Digite "Menu" para voltar._`
-      );
-
+      await client.sendMessage(usuarioId, "🎮 *Jogos de PS4:* https://joypad.com.br/categoria/todos-os-produtos/playstation4/" );
       return;
     }
 
-    // =====================================
-    // PLAYSTATION 5
-    // =====================================
-    if (
-      texto === "3" ||
-      texto === "ps5"
-    ) {
-
+    if (texto === "3" || texto === "ps5") {
       await typing(1500);
-
-      await client.sendMessage(
-        usuarioId,
-`🎮 *Jogos de PS5 disponíveis - Joypad Games* 🟦
-
-🌐 https://joypad.com.br/categoria/todos-os-produtos/playstation5/
-
-_Digite "Menu" para voltar._`
-      );
-
+      await client.sendMessage(usuarioId, "🎮 *Jogos de PS5:* https://joypad.com.br/categoria/todos-os-produtos/playstation5/" );
       return;
     }
 
-    // =====================================
-    // XBOX
-    // =====================================
     if (texto === "4") {
-
       await typing(2000);
-
-      await client.sendMessage(
-        usuarioId,
-`🟩 *Catálogo Xbox - Joypad Games*
-
-Veja nossos jogos e preços atualizados:
-
-🌐 https://joypad.com.br/categoria/todos-os-produtos/xbox/
-
-_Digite "Menu" para voltar._`
-      );
-
+      await client.sendMessage(usuarioId, "🟩 *Catálogo Xbox:* https://joypad.com.br/categoria/todos-os-produtos/xbox/" );
       return;
     }
 
-    // =====================================
-    // PC STEAM
-    // =====================================
     if (texto === "5") {
-
       await typing(2500);
-
-      await client.sendMessage(
-        usuarioId,
-`💻 *PC Steam Offline - Joypad Games*
-
-Jogue lançamentos de PC pagando muito menos.
-
-📌 Como funciona?
-Você recebe acesso à conta Steam com o jogo já comprado, instala normalmente e joga em modo offline.
-
-🌐 Veja os jogos disponíveis:
-https://joypad.com.br/categoria/todos-os-produtos/pc-steam-offline/
-
-_Digite "Menu" para voltar._`
-      );
-
+      await client.sendMessage(usuarioId, "💻 *PC Steam Offline:* https://joypad.com.br/categoria/todos-os-produtos/pc-steam-offline/" );
       return;
     }
 
-    // =====================================
-    // SUPORTE
-    // =====================================
     if (texto === "6") {
-
       emSuporte.add(usuarioId);
-
       await typing(2000);
-
-      await client.sendMessage(
-        usuarioId,
-`🛠️ *Suporte Técnico - Joypad Games*
-
-O robô foi pausado.
-
-Para agilizar o atendimento, envie:
-
-1️⃣ Seu console
-2️⃣ Foto ou número do erro
-3️⃣ Nome do jogo
-
-Nossa equipe já foi notificada 👍`
-      );
-
-      console.log(
-        `⚠️ Suporte ativado para: ${usuarioId}`
-      );
-
+      await client.sendMessage(usuarioId, "🛠️ *Suporte Técnico:* O robô foi pausado. Envie seu console e o erro para nossa equipe.");
       return;
     }
 
-    // =====================================
-    // GRUPO
-    // =====================================
     if (texto === "7") {
-
       await typing(1500);
-
-      await client.sendMessage(
-        usuarioId,
-`🔥 *Grupo Oficial Joypad Games* 🔥
-
-Entre no grupo para receber:
-
-🎮 Promoções
-🆕 Lançamentos
-💸 Jogos baratos
-🎁 Sorteios
-
-👉 ENTRE AGORA:
-https://chat.whatsapp.com/G9AKnxEMpsaEBWjKinE27Q`
-      );
-
+      await client.sendMessage(usuarioId, "🔥 *Grupo Oficial:* https://chat.whatsapp.com/G9AKnxEMpsaEBWjKinE27Q" );
       return;
     }
 
-    // =====================================
     // OPÇÃO INVÁLIDA
-    // =====================================
     await typing(1000);
-
-    await client.sendMessage(
-      usuarioId,
-`❌ Opção inválida.
-
-Digite *Menu* para voltar às opções.`
-    );
+    await client.sendMessage(usuarioId, "❌ Opção inválida. Digite *Menu* para voltar.");
 
   } catch (error) {
-
-    console.error(
-      "❌ Erro no fluxo:",
-      error
-    );
-
+    console.error("❌ Erro no fluxo:", error);
   }
-
 });
