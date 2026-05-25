@@ -404,3 +404,23 @@ Digite *Menu* para voltar às opções.`
 
   }
 });
+// código gigante do bot...
+
+client.on("message_create", async (msg) => {
+   // ...
+});
+
+// AQUI EMBAIXO entra o express
+const express = require("express");
+
+const app = express();
+
+app.get("/", (req, res) => {
+  res.send("🤖 Bot Joypad Games está online!");
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🌐 Servidor rodando na porta ${PORT}`);
+});
